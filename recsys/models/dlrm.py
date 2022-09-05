@@ -41,9 +41,14 @@ def prepare_tablewise_config(num_embeddings_per_feature,
         if world_size == 1:
             rank_arrange = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         elif world_size == 2:
-            rank_arrange = [0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0]
+            rank_arrange = [0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0]  # perfect
+            # rank_arrange = [1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1]  # bad test
+        elif world_size == 3:
+            rank_arrange = [2, 1, 0, 1, 1, 2, 2, 1, 0, 0, 1, 1, 0, 1, 0, 2, 0, 2, 2, 0, 2, 2, 0, 1, 1, 0]
         elif world_size == 4:
             rank_arrange = [3, 1, 0, 3, 1, 0, 2, 1, 0, 2, 3, 1, 3, 1, 2, 3, 1, 2, 3, 0, 2, 0, 0, 2, 3, 2]
+        elif world_size == 8:
+            rank_arrange = [6, 6, 0, 4, 7, 2, 5, 7, 0, 5, 7, 1, 7, 3, 5, 3, 1, 6, 6, 0, 2, 2, 1, 4, 3, 4]
         else :
             raise NotImplementedError("Other Tablewise settings are under development")
 
@@ -53,7 +58,9 @@ def prepare_tablewise_config(num_embeddings_per_feature,
             ids_freq_mapping = None
             if id_freq_map_total != None:
                 ids_freq_mapping = id_freq_map_total[table_offsets[i] : table_offsets[i + 1]]
-            cuda_row_num = int(cache_ratio * num_embeddings) + 2000
+            cuda_row_num = int(cache_ratio * num_embeddings)
+            if cuda_row_num < 16384:
+                cuda_row_num = 16384
             if cuda_row_num > num_embeddings:
                 cuda_row_num = num_embeddings
             embedding_bag_config_list.append(
@@ -95,13 +102,16 @@ class FusedSparseModules(nn.Module):
                 # establist config list
                 world_size = torch.distributed.get_world_size()
                 embedding_bag_config_list = prepare_tablewise_config(
-                    num_embeddings_per_feature, 0.3, id_freq_map, dataset, world_size)
+                    num_embeddings_per_feature, 0.01, id_freq_map, dataset, world_size)
                 self.embed = ParallelFreqAwareEmbeddingBagTablewise(
                     embedding_bag_config_list,
                     embedding_dim,
                     sparse=sparse,
                     mode=reduction_mode,
                     include_last_offset=True,
+                    cuda_row_num=cache_sets // world_size + 1,
+                    warmup_ratio=warmup_ratio,
+                    buffer_size=buffer_size,
                     evict_strategy=EvictionStrategy.LFU if use_lfu_eviction else EvictionStrategy.DATASET
                 )
                 self.shape_hook = sparse_embedding_shape_hook_for_tablewise
