@@ -18,18 +18,23 @@ EMBEDDING_DIM = 128
 # Full dataset is too big
 # CHOSEN_TABLES = [0, 2, 3, 4, 5, 7, 8, 9, 10, 12, 15, 18, 22, 27, 28]
 # CHOSEN_TABLES = [5, 8, 37, 54, 71,72,73,74,85,86,89,95,96,97,107,131,163, 185, 196, 204, 211, ]
-CHOSEN_TABLES = [i for i in range(300,418)]
+CHOSEN_TABLES = [i for i in range(856)]
 TEST_ITER = 100
 TEST_BATCH_SIZE = 16384
 WARMUP_ITERS = 5
 ##############################################
 
 
-def load_file(file_path):
+def load_file(file_path, cuda = True):
     indices, offsets, lengths = torch.load(file_path)
-    indices = indices.int().cuda()
-    offsets = offsets.int().cuda()
-    lengths = lengths.int().cuda()
+    if cuda:
+        indices = indices.int().cuda()
+        offsets = offsets.int().cuda()
+        lengths = lengths.int().cuda()
+    else :
+        indices = indices.int()
+        offsets = offsets.int()
+        lengths = lengths.int()
     num_embeddings_per_table = []
     indices_per_table = []
     lengths_per_table = []
@@ -42,9 +47,10 @@ def load_file(file_path):
         part = indices[start_pos:end_pos]
         indices_per_table.append(part)
         lengths_per_table.append(lengths[i])
-        offsets_per_table.append(torch.cumsum(
-            torch.cat((torch.tensor([0]).cuda(), lengths[i])), 0
-        ))
+        if cuda:
+            offsets_per_table.append(torch.cumsum(torch.cat((torch.tensor([0]).cuda(), lengths[i])), 0))
+        else:
+            offsets_per_table.append(torch.cumsum(torch.cat((torch.tensor([0]), lengths[i])), 0))
         if part.numel() == 0:
             num_embeddings_per_table.append(0)
         else:
@@ -180,7 +186,7 @@ def test(iter_num=1, batch_size=4096):
 # test(TEST_ITER, TEST_BATCH_SIZE)
 num_embeddings_per_table = None
 for i in range(16):
-    indices_per_table, offsets_per_table, lengths_per_table, num_embeddings_per_table1 = load_file(FILE_LIST[i])
+    indices_per_table, offsets_per_table, lengths_per_table, num_embeddings_per_table1 = load_file(FILE_LIST[i], cuda = False)
     if num_embeddings_per_table == None:
         num_embeddings_per_table = num_embeddings_per_table1
     else:
