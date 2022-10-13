@@ -16,17 +16,17 @@ from torchrec.sparse.jagged_tensor import KeyedJaggedTensor
 from torch.utils.data import DataLoader, IterableDataset
 import os
 
-NUM_ROWS = int(2**25) # samples num
+NUM_ROWS = int(2**23) # samples num
 CAT_FEATURE_COUNT = 8
-E = int(1e7) # unique embeddings num
+E = int(3e7) # unique embeddings num
 s = 0.25 # long-tail skew
 
 NUM_EMBEDDINGS_PER_FEATURE = (str(E) + ', ') * (CAT_FEATURE_COUNT - 1)
 NUM_EMBEDDINGS_PER_FEATURE += str(E)
+INT_FEATURE_COUNT = 1
 DEFAULT_LABEL_NAME = "click"
 DEFAULT_INT_NAMES = ['rand_dense']
 DEFAULT_CAT_NAMES = ["cat_{}".format(i) for i in range(CAT_FEATURE_COUNT)]
-
 
 TOTAL_TRAINING_SAMPLES = NUM_ROWS
 
@@ -67,18 +67,19 @@ class CustomIterDataPipe(IterableDataset):
     
     def _sampler(self, rand_float):
         sample_float = rand_float * (self.max_sample - self.min_sample) + self.min_sample
-        return torch.floor(1 / (sample_float ** (1 / s))).long() - 1
+        ret = torch.floor(1 / (sample_float ** (1 / s))).long() - 1
+        ret = torch.clamp(ret, 0, E - 1)
+        return ret
     def _generate_indices(self, length):
-        indices = self._sampler(torch.rand(length,))
+        indices = self._sampler(torch.rand(length,)).clone().detach()
         return indices
     
     def __iter__(self) -> Iterator[Batch]:
         while self.iter_count < self.num_batches:
             indices = self._generate_indices(self.batch_size * CAT_FEATURE_COUNT)
-            # print(indices)
+            # print(torch.min(indices), torch.max(indices))
             self.iter_count += 1
             yield self._make_batch(indices)
-            
     def _make_batch(self, indices):
         ret = Batch(
             dense_features=torch.rand(self.stride, 1),
@@ -88,9 +89,6 @@ class CustomIterDataPipe(IterableDataset):
                 lengths=self.lengths,
                 offsets=self.offsets,
                 stride=self.stride,
-                length_per_key=self.length_per_key,
-                offset_per_key=self.offset_per_key,
-                index_per_key=self.index_per_key,
             ),
             labels=torch.randint(2, (self.stride,))
         )
