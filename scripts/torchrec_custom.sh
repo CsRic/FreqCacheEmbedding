@@ -31,13 +31,13 @@ fi
 
 
 mkdir -p logs
-for PREFETCH_NUM in 1 # 32 4 8 16
+for PREFETCH_NUM in 2 # 32 4 8 16
 do
-for GPUNUM in 4 # 4 8 # 1 # 2
+for GPUNUM in 2 4 8 # 4 8 # 1 # 2
 do
 for BATCHSIZE in 8192 #2048 4096 1024 #8192 512 ##16384 8192 4096 2048 1024 512     
 do
-for SHARDTYPE in  "row" "tablerow"  # "tablecolumn" "column" "row" "tablerow" "table"
+for SHARDTYPE in  "row" "column" "table" # "tablecolumn" "column" "row" "tablerow" "table"
 do
 for KERNELTYPE in "colossalai" # "fused" # "uvm_lfu" # "colossalai" # "uvm_lfu" # "colossalai"
 do

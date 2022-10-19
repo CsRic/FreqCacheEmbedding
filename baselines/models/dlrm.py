@@ -77,7 +77,8 @@ class SparseArch(nn.Module):
         ]
 
         self.F: int = len(self._sparse_feature_names)
-
+        # (csr) count wait time
+        self.embedding_time: float = 0.0
     def forward(
         self,
         features: KeyedJaggedTensor,
@@ -89,7 +90,9 @@ class SparseArch(nn.Module):
         Returns:
             torch.Tensor: tensor of shape B X F X D.
         """
-        sparse_features: KeyedTensor = self.embedding_bag_collection(features)
+        sparse_features, time_elapse = self.embedding_bag_collection(features)
+        if isinstance(time_elapse, float):
+            self.embedding_time += time_elapse
         B: int = features.stride()
 
         sparse: Dict[str, torch.Tensor] = sparse_features.to_dict()

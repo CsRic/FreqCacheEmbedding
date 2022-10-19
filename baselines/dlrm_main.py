@@ -466,7 +466,7 @@ def _train(
                     "val",
                 )
                 train_pipeline._model.train()
-
+                
         except StopIteration:
             print(f"StopIteration {get_mem_info('Training:  ')}")
             break
@@ -475,8 +475,13 @@ def _train(
             break
         # if it > limit_train_batches:
         #     break
-
-
+    # (csr)print wait time cai
+    indices_comm = train_pipeline._pipelined_wait[0].time_elapse
+    # fused
+    # indices_comm = train_pipeline._pipelined_modules[0].time_elapse
+    embeddings_comm = train_pipeline._model._dmp_wrapped_module.module.model.sparse_arch.embedding_time
+    print(f"indices_comm: { indices_comm}")
+    print(f"embeddings_comm: {embeddings_comm}")
 def train_val_test(
     args: argparse.Namespace,
     train_pipeline: TrainPipelineSparseDist,

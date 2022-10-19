@@ -22,7 +22,7 @@ export DATAPATH=/data/scratch/RecSys/embedding_bag
 # export DATAPATH=custom
 export SCALE="512M" # "4M ""52M" "512M"
 export EVAL_ACC=0
-export EMB_DIM=128
+export EMB_DIM=160
 
 if [[ ${EVAL_ACC} == 1 ]];  then
 EVAL_ACC_FLAG="--eval_acc"
@@ -41,6 +41,9 @@ fi
 # 1
 
 mkdir -p logs
+
+for EMB_DIM in 130 140 150 160 170 180 190
+do
 for PREFETCH_NUM in 1 32 4 8 16 #8 16 32
 do
 for GPUNUM in 1 # 1 # 2
@@ -63,6 +66,7 @@ torchx run -s local_cwd -cfg log_dir=log/torchrec_synth/${PLAN} dist.ddp -j 1x${
     --learning_rate 1. --batch_size ${BATCHSIZE} --profile_dir "" --shard_type ${SHARDTYPE} --kernel_type ${KERNELTYPE}  \
     --synth_size ${SCALE} \
     --synth_size ${SCALE} --prefetch_num ${PREFETCH_NUM} ${EVAL_ACC_FLAG} 2>&1 | tee logs/torchrec_${PLAN}.txt
+done
 done
 done
 done
